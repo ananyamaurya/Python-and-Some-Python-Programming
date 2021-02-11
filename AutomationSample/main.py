@@ -12,7 +12,7 @@ def test_single_input_text():
     ad_close_button = chrome_browser.find_element_by_class_name('at-cm-no-button')
     ad_close_button.click()
     input_field = chrome_browser.find_element_by_id('user-message')
-    input_field.send_keys('Allah Maaf Kare')
+    input_field.send_keys('Hip Hip Hurray')
     assert 'Show Message' in chrome_browser.page_source
     button_button = chrome_browser.find_elements_by_xpath("//form[@id='get-input']/button[1]")
     button_button[0].click()
