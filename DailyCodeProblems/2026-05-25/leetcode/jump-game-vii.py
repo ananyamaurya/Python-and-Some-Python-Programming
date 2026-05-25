@@ -6,59 +6,64 @@
 # ║  URL        : https://leetcode.com/problems/jump-game-vii/
 # ╚══════════════════════════════════════════════════════════════╝
 
-import collections
+from collections import deque
 
 class Solution:
     """
     Problem Analysis:
-    We need to determine if we can reach the end of a binary string 's' starting from index 0.
-    A jump from index i to j is valid if:
+    We need to determine if we can reach the last index of a binary string 's',
+    starting from index 0. We can jump from index i to index j if:
     1. minJump <= j - i <= maxJump
     2. s[j] == '0'
-    
+
     Dynamic Programming Approach:
     Let dp[i] be true if index i is reachable.
-    dp[i] is true if there exists some j such that:
-    i - maxJump <= j <= i - minJump AND dp[j] is true AND s[i] == '0'.
-    
+    dp[i] = s[i] == '0' AND there exists some k such that:
+            i - maxJump <= k <= i - minJump AND dp[k] == true.
+
     Optimization:
-    Checking all j in the range [i - maxJump, i - minJump] would take O(N * (maxJump - minJump)), 
-    which is O(N^2) in worst case. We can optimize this using a sliding window sum 
-    or a queue to keep track of reachable indices in the current valid jump window.
-    
-    Time Complexity: O(N) - Each index is added and removed from the queue at most once.
-    Space Complexity: O(N) - To store the reachability state or the queue.
+    Checking all k in the range [i - maxJump, i - minJump] for every i would lead to 
+    O(N * (maxJump - minJump)) complexity, which is O(N^2) in the worst case.
+    We can use a sliding window (specifically a deque or a counter) to maintain the 
+    number of reachable indices (where dp[k] == true) within the current valid window.
+
+    Time Complexity: O(N) - We traverse the string once.
+    Space Complexity: O(N) - To store the dp array.
     """
+
     def canReach(self, s: str, minJump: int, maxJump: int) -> bool:
         n = len(s)
-        if s[n - 1] == '1':
-            return False
+        # dp[i] indicates if the index i is reachable
+        dp = [False] * n
+        dp[0] = True
         
-        # reachable_indices stores indices 'j' that are marked as reachable
-        # and are within the window that can potentially jump to the current index 'i'.
-        reachable_indices = collections.deque()
+        # reachable_count tracks how many indices in the current window [i - maxJump, i - minJump]
+        # are marked as True in the dp array.
+        reachable_count = 0
         
-        # Starting position is always reachable
-        reachable_indices.append(0)
-        
-        # We start checking from index 1.
-        # For index i to be reachable, there must be a reachable index j in [i - maxJump, i - minJump].
+        # We start checking reachability from index minJump because 
+        # any index before that cannot be reached from index 0.
         for i in range(1, n):
-            # 1. Remove indices from the queue that are too far back to reach index i
-            while reachable_indices and reachable_indices[0] < i - maxJump:
-                reachable_indices.popleft()
+            # 1. Add the new index that just entered the window [i - maxJump, i - minJump]
+            # The index entering the window for current 'i' is (i - minJump)
+            if i >= minJump:
+                if dp[i - minJump]:
+                    reachable_count += 1
             
-            # 2. Check if the current index i can be reached from any index in the queue.
-            # The index must be at least minJump distance away.
-            if s[i] == '0' and reachable_indices and reachable_indices[0] <= i - minJump:
-                # Index i is reachable!
-                if i == n - 1:
-                    return True
-                reachable_indices.append(i)
-                
-        return False
+            # 2. Remove the index that just left the window
+            # The index leaving the window for current 'i' is (i - maxJump - 1)
+            if i > maxJump:
+                if dp[i - maxJump - 1]:
+                    reachable_count -= 1
+            
+            # 3. Determine if index i is reachable
+            # It is reachable if s[i] is '0' and there's at least one reachable index in the window
+            if s[i] == '0' and reachable_count > 0:
+                dp[i] = True
+        
+        return dp[n - 1]
 
-# Example Usage:
+# Example usage:
 # sol = Solution()
-# print(sol.canReach("011010", 2, 3))  # Output: True
-# print(sol.canReach("01101110", 2, 3)) # Output: False
+# print(sol.canReach("011010", 2, 3))   # Expected: True
+# print(sol.canReach("01101110", 2, 3)) # Expected: False
