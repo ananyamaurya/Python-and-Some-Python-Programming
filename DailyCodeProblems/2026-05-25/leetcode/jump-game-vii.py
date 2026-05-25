@@ -10,57 +10,60 @@ from collections import deque
 
 class Solution:
     """
-    Problem Explanation:
-    We need to determine if we can reach the last index of a binary string 's' starting 
-    from index 0. We can jump from index i to index j if:
-    1. j is within the range [i + minJump, i + maxJump]
-    2. s[j] == '0'
-    
+    Problem: Jump Game VII
+    The goal is to determine if we can reach the last index of a binary string 's'
+    starting from index 0, given the jumping constraints [minJump, maxJump] 
+     and the requirement that the destination index must contain '0'.
+
     Approach:
     We use Dynamic Programming where dp[i] is True if index i is reachable.
-    To optimize the range check [i + minJump, i + maxJump], we maintain a sliding window 
-    of reachable indices. 
+    To avoid an O(N * maxJump) complexity, which would be O(N^2) in worst case,
+    we use a sliding window approach.
     
-    Algorithm:
-    1. Use a queue to store all indices 'j' that are reachable (dp[j] == True).
-    2. For the current index 'i', we check if there's any reachable index 'prev' in the 
-       queue such that:
-       - prev + minJump <= i (the jump is long enough)
-       - prev + maxJump >= i (the jump is not too long)
-    3. If the current index 'i' is '0' and we find such a 'prev', then 'i' is reachable.
-    4. We prune the queue by removing indices that are too far back to ever reach 
-       any future indices (i.e., prev + maxJump < i).
-    
-    Time Complexity: O(N) where N is the length of the string. Each index is added 
-                     and removed from the queue at most once.
-    Space Complexity: O(N) to store the queue in the worst case.
+    We maintain a count of reachable indices ('0's that are reachable) within the 
+    current window [i - maxJump, i - minJump]. 
+    If the current index i is '0' and there is at least one reachable index in the 
+    window, then index i becomes reachable.
+
+    Time Complexity: O(N) - We traverse the string once.
+    Space Complexity: O(N) - To store the reachability status of each index.
     """
 
     def canReach(self, s: str, minJump: int, maxJump: int) -> bool:
         n = len(s)
-        if s[n - 1] == '1':
-            return False
+        # dp[i] indicates if index i is reachable from index 0
+        dp = [False] * n
+        dp[0] = True
         
-        # Queue stores indices that are reachable and can potentially be 
-        # starting points for future jumps.
-        reachable_indices = deque([0])
+        # 'reachable_count' tracks how many indices in the current window [left, right]
+        # are both '0' and reachable.
+        reachable_count = 0
         
-        # We start iterating from index 1 to n-1
+        # The window for index i is [i - maxJump, i - minJump].
+        # We maintain this window as we iterate i from 1 to n-1.
         for i in range(1, n):
-            # 1. Remove indices from the front of the queue that are too far 
-            # to reach the current index i.
-            while reachable_indices and reachable_indices[0] + maxJump < i:
-                reachable_indices.popleft()
+            # The right edge of the window for the current index i is (i - minJump)
+            # If this index is within bounds and is reachable, add it to our count.
+            right = i - minJump
+            if right >= 0:
+                if dp[right]:
+                    reachable_count += 1
             
-            # 2. Check if the current index is '0' and if the first element in the 
-            # queue can reach index i (satisfies minJump condition).
-            # Since we already popped indices that exceed maxJump, we only need 
-            # to check if the current index is within the reachable range of 
-            # the oldest valid reachable index.
-            if s[i] == '0' and reachable_indices and reachable_indices[0] + minJump <= i:
-                # Index i is reachable.
-                if i == n - 1:
-                    return True
-                reachable_indices.append(i)
+            # The left edge of the window is (i - maxJump - 1)
+            # As i increases, the index that just fell out of the window is (i - maxJump - 1)
+            left = i - maxJump - 1
+            if left >= 0:
+                if dp[left]:
+                    reachable_count -= 1
+            
+            # If current character is '0' and there is at least one reachable 
+            # index in the current window, mark current index as reachable.
+            if s[i] == '0' and reachable_count > 0:
+                dp[i] = True
         
-        return False
+        return dp[n - 1]
+
+# Example Usage:
+# sol = Solution()
+# print(sol.canReach("011010", 2, 3)) # Expected: True
+# print(sol.canReach("01101110", 2, 3)) # Expected: False
