@@ -6,29 +6,30 @@
 # ║  URL        : https://leetcode.com/problems/jump-game-vii/
 # ╚══════════════════════════════════════════════════════════════╝
 
+from collections import deque
+
 class Solution:
+    """
+    Problem Analysis:
+    The goal is to determine if we can reach the last index of a binary string 's' 
+    starting from index 0. We can jump from index i to j if:
+    1. i + minJump <= j <= min(i + maxJump, s.length - 1)
+    2. s[j] == '0'
+
+    Approach:
+    This is a reachability problem that can be solved using Dynamic Programming (DP).
+    Let dp[i] be true if index i is reachable.
+    dp[i] = (s[i] == '0') AND (there exists j such that dp[j] == true and i - maxJump <= j <= i - minJump).
+
+    To optimize the check for the existence of a reachable 'j' in the range [i - maxJump, i - minJump],
+    we can use a sliding window (specifically, a queue or a counter) to keep track of how many 
+    reachable indices currently fall within the valid window.
+
+    Time Complexity: O(N) where N is the length of the string s. We traverse the string once.
+    Space Complexity: O(N) to store the dp array.
+    """
+
     def canReach(self, s: str, minJump: int, maxJump: int) -> bool:
-        """
-        Problem Analysis:
-        We need to determine if the last index of a binary string is reachable from 
-        index 0, given constraints on the jump distance [minJump, maxJump] and 
-        the condition that we can only land on '0'.
-
-        Approach:
-        1. Dynamic Programming: Let dp[i] be True if index i is reachable.
-        2. Transition: dp[i] is True if there exists a j such that:
-           - dp[j] is True
-           - s[i] == '0'
-           - i - maxJump <= j <= i - minJump
-        3. Optimization: Checking the range [i - maxJump, i - minJump] for any True 
-           value in every step would take O(N * maxJump), which is O(N^2) in worst case.
-           We can use a sliding window (prefix sum or a counter) to keep track of 
-           how many reachable indices ('True' values in dp) currently exist in 
-           the valid jump window.
-
-        Time Complexity: O(N), where N is the length of the string. We traverse the string once.
-        Space Complexity: O(N) to store the DP array.
-        """
         n = len(s)
         if s[-1] == '1':
             return False
@@ -37,38 +38,31 @@ class Solution:
         dp = [False] * n
         dp[0] = True
         
-        # 'reachable_count' stores the number of reachable indices (dp[j] == True)
-        # within the window [i - maxJump, i - minJump].
+        # reachable_count keeps track of how many indices j in the range 
+        # [i - maxJump, i - minJump] have dp[j] == True.
         reachable_count = 0
         
+        # We iterate through the string. For index i, the valid range of 
+        # previous indices j that could jump to i is [i - maxJump, i - minJump].
         for i in range(1, n):
-            # The window for index i is [i - maxJump, i - minJump].
-            # As i increases, we need to:
-            # 1. Add the new index entering the window: (i - minJump)
-            # 2. Remove the index leaving the window: (i - maxJump - 1)
-            
-            # Add index that just entered the reach range
-            if i - minJump >= 0:
+            # 1. Add the index that just entered the window (i - minJump)
+            if i >= minJump:
                 if dp[i - minJump]:
                     reachable_count += 1
             
-            # Remove index that just left the reach range
-            if i - maxJump - 1 >= 0:
+            # 2. Remove the index that just left the window (i - maxJump - 1)
+            if i > maxJump:
                 if dp[i - maxJump - 1]:
                     reachable_count -= 1
             
-            # If current index is '0' and there's at least one reachable index in the window
+            # 3. If s[i] is '0' and there is at least one reachable index in the window,
+            # then index i is reachable.
             if s[i] == '0' and reachable_count > 0:
                 dp[i] = True
-        
-        return dp[n - 1]
+                
+        return dp[-1]
 
-# Example Walkthrough (Example 1):
-# s = "011010", minJump = 2, maxJump = 3
-# i=0: dp[0]=T, count=0
-# i=1: window [1-3, 1-2] = [-2, -1]. count=0, s[1]='1', dp[1]=F
-# i=2: window [2-3, 2-2] = [-1, 0]. dp[0] enters, count=1, s[2]='1', dp[2]=F
-# i=3: window [3-3, 3-2] = [0, 1]. dp[1] enters (F), count=1, s[3]='0', dp[3]=T
-# i=4: window [4-3, 4-2] = [1, 2]. dp[2] enters (F), dp[0] leaves (T), count=0, s[4]='1', dp[4]=F
-# i=5: window [5-3, 5-2] = [2, 3]. dp[3] enters (T), dp[1] leaves (F), count=1, s[5]='0', dp[5]=T
-# Result: dp[5] = True
+# Example usage:
+# sol = Solution()
+# print(sol.canReach("011010", 2, 3)) # Output: True
+# print(sol.canReach("01101110", 2, 3)) # Output: False
