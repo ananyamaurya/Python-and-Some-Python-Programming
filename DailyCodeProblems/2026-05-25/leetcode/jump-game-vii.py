@@ -10,62 +10,64 @@ from collections import deque
 
 class Solution:
     """
-    Problem Analysis:
-    We need to determine if the last index of a binary string is reachable starting from index 0.
-    The movement rules are: from index i, we can jump to index j if:
-    1. i + minJump <= j <= i + maxJump
-    2. s[j] == '0'
+    Problem: Jump Game VII
     
     Approach:
-    A naive Dynamic Programming approach would be O(N * (maxJump - minJump)), which 
-    could be O(N^2) in the worst case (e.g., minJump=1, maxJump=N).
+    We use Dynamic Programming to determine if the last index is reachable.
+    Let dp[i] be True if index i is reachable.
+    The transition is: dp[i] = True if there exists some j such that:
+    - j is reachable (dp[j] == True)
+    - i - maxJump <= j <= i - minJump
+    - s[i] == '0'
     
-    To optimize, we use a sliding window technique with a queue.
-    We maintain a queue of indices that are 'reachable' and can potentially 
-    serve as a starting point for a jump to the current index 'i'.
+    To efficiently check if any index in the range [i - maxJump, i - minJump] is reachable,
+    we maintain a sliding window of reachable indices using a queue (deque).
     
-    As we iterate through the string:
-    1. We remove indices from the front of the queue that are too far away 
-       (i - index > maxJump).
-    2. If the current index 'i' is '0' and there is at least one index in the 
-       queue that satisfies the minJump constraint (index <= i - minJump), 
-       then 'i' is reachable.
-    3. If 'i' is reachable, we add it to the queue to potentially help future indices.
-    
-    Time Complexity: O(N) - Each index is added and removed from the queue at most once.
-    Space Complexity: O(N) - In the worst case, the queue stores a significant fraction of indices.
+    Algorithm:
+    1. Initialize a queue `reachable` and add index 0 to it.
+    2. Iterate through the string from index 1 to n-1.
+    3. While the queue is not empty and the element at the front is too far 
+       (index < i - maxJump), pop from the left.
+    4. If the current index `i` is '0' and there is at least one reachable 
+       index in the queue that satisfies the `minJump` constraint 
+       (queue[0] <= i - minJump), then index `i` is reachable.
+    5. If index `i` is reachable, add it to the queue.
+    6. Return whether the last index was reachable.
+
+    Time Complexity: O(n) - Each index is pushed and popped from the deque at most once.
+    Space Complexity: O(n) - In the worst case, the deque could store O(n) indices.
     """
 
     def canReach(self, s: str, minJump: int, maxJump: int) -> bool:
         n = len(s)
-        if s[-1] == '1':
-            return False
+        # Deque stores indices 'j' that are reachable and can potentially 
+        # be used to jump to a future index 'i'.
+        reachable = deque([0])
         
-        # Queue stores indices that are reachable and could potentially 
-        # jump to a future index.
-        reachable_indices = deque([0])
-        
-        # We start checking from minJump because index 0 is our start.
-        for i in range(minJump, n):
-            # 1. Remove indices that are beyond the maxJump range of the current index i.
-            while reachable_indices and reachable_indices[0] < i - maxJump:
-                reachable_indices.popleft()
+        # We start from index 1 because index 0 is already given as reachable.
+        for i in range(1, n):
+            # 1. Remove indices that are out of the maxJump range for the current index i.
+            while reachable and reachable[0] < i - maxJump:
+                reachable.popleft()
             
-            # 2. Check if current index i is a valid landing spot ('0').
-            if s[i] == '0':
-                # 3. Check if the first index in our queue satisfies the minJump requirement.
-                # Since the queue is sorted, if the first element satisfies 
-                # reachable_indices[0] <= i - minJump, then i is reachable.
-                if reachable_indices and reachable_indices[0] <= i - minJump:
-                    # If we reached the end, return True immediately.
-                    if i == n - 1:
-                        return True
-                    # Otherwise, mark this index as reachable for future jumps.
-                    reachable_indices.append(i)
-        
+            # 2. Check if the current index i can be reached from any index in the queue.
+            # Condition 1: s[i] must be '0'.
+            # Condition 2: There must be a reachable index j such that j <= i - minJump.
+            if s[i] == '0' and reachable and reachable[0] <= i - minJump:
+                # The last index is our target.
+                if i == n - 1:
+                    return True
+                
+                # Mark this index as reachable by adding it to the queue.
+                reachable.append(i)
+                
+        # Special case: the string length might be such that the loop finishes.
+        # However, the problem constraints say 2 <= s.length, and we return True 
+        # inside the loop if the last index is reached.
+        # If the loop finishes without returning True, it's unreachable.
         return False
 
-# Example Usage:
+# Example usage:
 # sol = Solution()
-# print(sol.canReach("011010", 2, 3)) # Expected: True
-# print(sol.canReach("01101110", 2, 3)) # Expected: False
+# print(sol.canReach("011010", 2, 3)) # Output: True
+# print(sol.canReach("01101110", 2, 3)) # Output: False
