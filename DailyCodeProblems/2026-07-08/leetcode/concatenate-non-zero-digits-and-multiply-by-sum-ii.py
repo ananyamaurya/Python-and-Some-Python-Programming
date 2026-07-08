@@ -6,91 +6,81 @@
 # ║  URL        : https://leetcode.com/problems/concatenate-non-zero-digits-and-multiply-by-sum-ii/
 # ╚══════════════════════════════════════════════════════════════╝
 
-import collections
-
-"""
-Problem Analysis:
-- We need to find the number 'x' formed by concatenating non-zero digits of s[l..r].
-- We need the sum of those digits.
-- The result is (x * sum) % (10^9 + 7).
-- Since s.length and queries.length are up to 10^5, an O(m + q) solution is required.
-
-Approach:
-1. Precompute the positions of all non-zero digits. This allows us to quickly identify 
-   which digits in a range [l, r] contribute to 'x'.
-2. Precompute a prefix sum of the digits of s to find the 'sum' in O(1).
-3. To compute 'x' modulo 10^9 + 7, we use a prefix array of the non-zero digits.
-   If non-zero digits are d_1, d_2, ..., d_k, then x = d_1*10^{k-1} + d_2*10^{k-2} + ... + d_k*10^0.
-   Using prefix values: pref_x[i] = (pref_x[i-1] * 10 + digit) % MOD.
-   The value of x for non-zero digits from index i to j is:
-   x = (pref_x[j] - pref_x[i-1] * 10^(j-i+1)) % MOD.
-4. We can use binary search (bisect_left/right) on the precomputed non-zero indices 
-   to find the range [i, j] of non-zero digits that fall within the query range [l, r].
-
-Time Complexity: O(m + q * log m) where m is string length and q is number of queries.
-Space Complexity: O(m) to store prefix sums and positions.
-"""
-
-from bisect import bisect_left, bisect_right
+from typing import List
 
 class Solution:
-    def solve(self, s: str, queries: list[list[int]]) -> list[int]:
+    """
+    Problem Analysis:
+    We need to extract a substring, remove zeros, form a number x from the remaining digits, 
+    and calculate (x * sum_of_digits_of_x) modulo 10^9 + 7.
+    
+    Key Challenges:
+    1. The number x can be very large, so we must handle it using modular arithmetic.
+    2. We need to efficiently query the range [li, ri] for both the value of x and the sum.
+    
+    Strategy:
+    - Precompute prefix sums for the digits to get the 'sum' in O(1).
+    - Precompute prefix values for the non-zero digits. Since the value depends on the 
+      position (power of 10), we need to track how many non-zero digits have appeared 
+      up to index i.
+    - Let 'nz_count[i]' be the count of non-zero digits in s[0...i-1].
+    - Let 'prefix_val[i]' be the value formed by non-zero digits in s[0...i-1] modulo 10^9 + 7.
+    - For a range [L, R], the number x is:
+      x = (prefix_val[R+1] - prefix_val[L] * 10^(nz_count[R+1] - nz_count[L])) % MOD.
+    """
+
+    def concatenateNonZeroDigitsAndMultiplyBySum(self, s: str, queries: List[List[int]]) -> List[int]:
         MOD = 10**9 + 7
-        m = len(s)
+        n = len(s)
         
-        # 1. Prefix sum of all digits for the 'sum' part of the query
-        # pref_sum[i] is the sum of digits from s[0] to s[i-1]
-        pref_sum = [0] * (m + 1)
-        for i in range(m):
-            pref_sum[i+1] = pref_sum[i] + int(s[i])
-            
-        # 2. Track indices of non-zero digits and their prefix-concatenated values
-        nz_indices = []
-        nz_vals = [0] * (m + 1) # pref_x[i]
+        # prefix_sum[i] stores sum of digits in s[0...i-1]
+        prefix_sum = [0] * (n + 1)
+        # prefix_val[i] stores the integer formed by non-zero digits in s[0...i-1] % MOD
+        prefix_val = [0] * (n + 1)
+        # nz_count[i] stores the number of non-zero digits in s[0...i-1]
+        nz_count = [0] * (n + 1)
         
-        curr_val = 0
-        for i in range(m):
-            digit = int(s[i])
-            if digit != 0:
-                nz_indices.append(i)
-                curr_val = (curr_val * 10 + digit) % MOD
-            nz_vals[len(nz_indices)] = curr_val
-            
-        # 3. Precompute powers of 10 for O(1) lookup
-        pow10 = [1] * (m + 1)
-        for i in range(1, m + 1):
+        # Precompute powers of 10 to avoid repeated pow() calls
+        # max_nz is at most n
+        pow10 = [1] * (n + 1)
+        for i in range(1, n + 1):
             pow10[i] = (pow10[i-1] * 10) % MOD
             
-        results = []
-        for l, r in queries:
-            # Find the range of non-zero digits that are within indices [l, r]
-            # idx_l is the index in the nz_indices list for the first non-zero digit >= l
-            idx_l = bisect_left(nz_indices, l)
-            # idx_r is the index in the nz_indices list for the last non-zero digit <= r
-            idx_r = bisect_right(nz_indices, r) - 1
+        for i in range(n):
+            digit = int(s[i])
+            prefix_sum[i+1] = prefix_sum[i] + digit
+            nz_count[i+1] = nz_count[i]
+            prefix_val[i+1] = prefix_val[i]
             
-            if idx_l > idx_r:
-                # No non-zero digits found in the range
+            if digit != 0:
+                nz_count[i+1] += 1
+                # Update prefix_val: shift previous value by 10 and add current digit
+                prefix_val[i+1] = (prefix_val[i] * 10 + digit) % MOD
+        
+        results = []
+        for li, ri in queries:
+            # Sum of digits in the range [li, ri]
+            s_val = prefix_sum[ri + 1] - prefix_sum[li]
+            
+            if s_val == 0:
                 results.append(0)
                 continue
+                
+            # Calculate x for the range [li, ri]
+            # Number of non-zero digits in this range
+            count_in_range = nz_count[ri + 1] - nz_count[li]
             
-            # Calculate 'sum' using precomputed prefix sums
-            digit_sum = pref_sum[r+1] - pref_sum[l]
+            # To extract the number from prefix_val:
+            # prefix_val[ri+1] = (prefix_val[li] * 10^count_in_range + x) % MOD
+            # x = (prefix_val[ri+1] - prefix_val[li] * 10^count_in_range) % MOD
+            x = (prefix_val[ri + 1] - (prefix_val[li] * pow10[count_in_range]) % MOD) % MOD
             
-            # Calculate 'x' using the non-zero prefix values
-            # x = (nz_vals[idx_r + 1] - nz_vals[idx_l] * 10^(count_of_digits)) % MOD
-            count = idx_r - idx_l + 1
-            # Note: nz_vals is 1-indexed relative to nz_indices
-            x = (nz_vals[idx_r + 1] - nz_vals[idx_l] * pow10[count]) % MOD
-            
-            results.append((x * digit_sum) % MOD)
+            # The final answer is (x * sum) % MOD
+            results.append((x * s_val) % MOD)
             
         return results
 
-# To match the LeetCode class structure expected by the platform:
-# The method is actually named 'concatenateNonZeroDigitAndMultiplyBySum' in the original problem.
-# Let's wrap it into the expected method name.
-
-def concatenateNonZeroDigitAndMultiplyBySum(s: str, queries: list[list[int]]) -> list[int]:
-    sol = Solution()
-    return sol.solve(s, queries)
+# Time Complexity: O(N + Q), where N is the length of the string s and Q is the number of queries.
+#   - Precomputation takes O(N).
+#   - Each query is answered in O(1).
+# Space Complexity: O(N), to store the prefix arrays (prefix_sum, prefix_val, nz_count, and pow10).
